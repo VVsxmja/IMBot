@@ -1,0 +1,26 @@
+{
+  "name": "imbot",
+  "author": {
+    "name": "VVsxmja",
+    "email": "vvsxmja@qq.com",
+    "url": "https://github.com/VVsxmja"
+  },
+  "homepage": "https://github.com/VVsxmja/IMBot",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VVsxmja/IMBot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/VVsxmja/IMBot/issues"
+  },
+  "scripts": {
+    "start": "node main.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "go-cqhttp": "^2.0.0",
+    "pino": "^8.8.0",
+    "pino-pretty": "^9.1.1",
+    "ws": "^8.11.0"
+  }
+}
