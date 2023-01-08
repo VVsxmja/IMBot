@@ -10,13 +10,13 @@ export default {
         {
             async match(event) {},
             pass: false, 
-            async *action(event) {},
+            async *action(event, context) {},
         },
     ],
     command: [
         {
             command: 'ping',
-            async *action(args, event) {},
+            async *action(args, context) {},
         }
     ]
 }
