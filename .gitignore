@@ -1,3 +1,6 @@
+profiles/*
+!profiles/readme.md
+
 # go-cqhttp
 config.yml
 data/
