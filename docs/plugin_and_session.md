@@ -44,12 +44,11 @@ export default {
 
 ### 属性
 
-- `match(event)` : 用于判断一个事件是否要由该中间件处理。
-  - 参数 `event` : 待匹配的事件。
+- `match(context)` : 用于判断一个事件是否要由该中间件处理。
+  - 参数 `context` : 待匹配的事件所在的上下文，事件本身在 `context.event` 中。
 - `pass` : 布尔值，表示该中间件处理完事件后，事件是否被传递给下一个中间件。若此项不存在或为 `false` ，则事件不会被传递。
-- `action(event, context)` : 见上文。
-  - 参数 `event` : 待响应的事件。
-  - 参数 `context` : 上下文对象，包含当前 `profile` ，以及机器人自身
+- `action(context)` : 见上文。
+  - 参数 `context` : 上下文对象，包含当前 `profile` 、当前事件 `event` 以及机器人自身。
 
 ## 命令形式
 
@@ -63,14 +62,14 @@ export default {
 插件被加载前，程序会检查已加载的插件和要加载的插件是否响应重复的命令，
 如果是则插件不会被加载。
 
-*WIP：插件不能响应程序自带的命令，例如 `/start` 等。*
+*TODO：插件不能响应程序自带的命令，例如 `/start` 等。*
 
 ### 属性
 
 - `command` : 要响应的命令。
-- `action(args, context)` : 见上文。
-  - 参数 `args` : 调用该命令时传递的参数。
-  - 参数 `context` : 上下文对象，包含当前 `profile` ，以及机器人自身
+- `action(context, args)` : 见上文。
+  - 参数 `context` : 上下文对象，包含当前 `profile` 、当前事件 `event` 以及机器人自身。
+  - 参数 `args` : 调用该命令时传递的参数，每一个参数都是一个 [`messaage`](https://12.onebot.dev/interface/message/type/) 的数组。
 
 ## `session`
 
@@ -84,7 +83,7 @@ export default {
 
 只有用户在消息中**提及**了属于该 `session` 的消息，该消息事件才会被传递给该 `session` 。
 
-*WIP：后续可能会添加其他的触发方式*
+*TODO：后续可能会添加其他的触发方式*
 
 传递给某个 `session` 的事件不会被继续传递给其他 `session` 以及其他所有插件。
 
@@ -101,7 +100,7 @@ export default {
 
 当 `session` 过期，或者 `inst` 结束时，`session` 结束并被销毁。
 
-*WIP：`session` 过期的判断还没实现*
+*TODO：`session` 过期的判断还没实现*
 
 ### 其他
 

@@ -19,4 +19,4 @@
 
 若有需要，也可以手动调整，使机器人响应全部群聊消息。
 
-*WIP：通过 `/profile respond_all on/off` 来切换是否响应全部消息*
+*TODO：通过 `/profile respond_all on/off` 来切换是否响应全部消息*

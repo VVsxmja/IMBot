@@ -9,12 +9,7 @@ async function respondGroupPing(group_id, bot) {
                 detail_type: 'group',
                 group_id: group_id,
                 message: [
-                    {
-                        type: 'text',
-                        data: {
-                            text: '死了'
-                        }
-                    }
+                    { type: 'text', data: { text: '死了' } }
                 ]
             }
         })
@@ -31,23 +26,23 @@ export const ping = {
     description: '测试机器人是否在线',
     middleware: [
         {
-            async match(event) {
-                if (event.post_type === 'message') {
-                    return event.raw_message.trim() === '活着'
+            async match(context) {
+                if (context.event.post_type === 'message') {
+                    return context.event.raw_message.trim() === '活着'
                 }
                 return false
             },
             pass: false,
-            async *action(event, context) {
-                await respondGroupPing(event.group_id, context.bot)
+            async *action(context) {
+                await respondGroupPing(context.event.group_id, context.bot)
             },
         }
     ],
     command: [
         {
             command: 'ping',
-            async *action(args) {
-                // WIP
+            async *action(context) {
+                await respondGroupPing(context.event.group_id, context.bot)
             }
         }
     ]
