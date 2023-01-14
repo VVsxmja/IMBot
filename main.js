@@ -233,10 +233,10 @@ const bot = {
                     // 暂时没有对中间件的检查
                     // 检查命令是否能导入
 
-                    if (!!plugin.command) {
+                    if (!!pluginObject.command) {
                         let duplicateCommand = false
 
-                        const otherCommands = profile.activePlugins.map(plugin => plugin.command).flatMap(item => item.command)
+                        const otherCommands = profile.activePlugins.flatMap(plugin => plugin.command).map(item => item.command)
                         const currentCommands = pluginObject.command.map(item => item.command)
                         for (const i of currentCommands) {
                             if (otherCommands.includes(i)) {
