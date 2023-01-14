@@ -138,7 +138,10 @@ export function ParseCommand(event) {
                                 thisArg.push(thisText)
                                 thisText = NewText() // reset
                             }
-                            if (thisArg.length) args.push(thisArg)
+                            if (thisArg.length) {
+                                args.push(thisArg)
+                                thisArg = []
+                            }
                             state = new State('nothing')
                         } else {
                             thisText.data.text += ch
@@ -175,7 +178,10 @@ export function ParseCommand(event) {
         case 'nothing':
             break
         case 'normal':
-            if (thisArg.length) args.push(thisArg)
+            if (thisArg.length) {
+                args.push(thisArg)
+                thisArg = []
+            }
             break
     }
     return {
