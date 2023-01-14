@@ -223,7 +223,7 @@ const bot = {
                     }
                     profile.activePlugins.push(pluginObject)
                 } else {
-                    logger.warn(`插件 ${plugin.name} 载入方式有误`)
+                    logger.warn(`插件 ${plugin.name} 载入方式有误，或暂不支持`)
                     throw Error()
                 }
             }
