@@ -191,45 +191,80 @@ const bot = {
         try {
             for (const plugin of profile.profile.plugins) {
                 if (plugin?.load_method === 'import') {
+                    const errorLogPrefix = `为 profile "${profile.profile.name}" 载入插件 ${plugin.name} 失败：`
+
                     let pluginObject
                     try {
                         pluginObject = (await import(`./plugins/${plugin.name}/${plugin.name}.js`))[plugin.name]
                     } catch (err) {
-                        logger.error(`从 ./plugins/${plugin.name}/${plugin.name}.js 载入插件 ${plugin.name} 失败`)
-                        throw err
+                        const reason = `无法从 ./plugins/${plugin.name}/${plugin.name}.js 导入 ${plugin.name} 对象`
+                        logger.error(errorLogPrefix + reason)
+                        throw Error(reason, {
+                            cause: err
+                        })
                     }
 
                     // 检查插件能否正确载入
 
-                    let invalid = false
+                    // 检查插件名称
+
+                    if (!pluginObject.name) {
+                        const reason = 'name 属性不存在'
+                        logger.error(errorLogPrefix + reason)
+                        throw Error(reason)
+                    }
+
+                    if (pluginObject.name !== plugin.name) {
+                        const reason = `name 属性有误（${pluginObject.name}），应与插件名称相同`
+                        logger.error(errorLogPrefix + reason)
+                        throw Error(reason)
+                    }
+
+                    for (const usedName of profile.activePlugins.map(plugin => plugin.name)) {
+                        if (usedName === plugin.name) {
+                            const reason = '已经导入了同名插件'
+                            logger.error(errorLogPrefix + reason)
+                            throw Error(reason)
+                        } else if (usedName.toLowerCase() === plugin.name.toLowerCase()) {
+                            logger.warn(`插件 ${plugin.name} 与已加载的插件 ${usedName} 除大小写外完全相同`)
+                        }
+                    }
 
                     // 暂时没有对中间件的检查
                     // 检查命令是否能导入
 
-                    const otherCommands = profile.activePlugins.map(plugin => plugin.command).flatMap(item => item.command)
-                    const currentCommands = pluginObject.command.map(item => item.command)
-                    for (const i of currentCommands) {
-                        if (otherCommands.includes(i)) {
-                            invalid = true
-                            logger.warn(`插件 ${plugin.name} 试图响应已有的命令 "${i}"`);
+                    if (!!plugin.command) {
+                        let duplicateCommand = false
+
+                        const otherCommands = profile.activePlugins.map(plugin => plugin.command).flatMap(item => item.command)
+                        const currentCommands = pluginObject.command.map(item => item.command)
+                        for (const i of currentCommands) {
+                            if (otherCommands.includes(i)) {
+                                duplicateCommand = true
+                                logger.warn(`插件 ${plugin.name} 试图响应已有的命令 "${i}"`);
+                            }
                         }
-                    }
 
-                    // 载入插件结束
+                        // 载入插件结束
 
-                    if (invalid) {
-                        logger.error(`载入插件 ${plugin.name} 失败`)
-                        throw Error()
+                        if (duplicateCommand) {
+                            const reason = '与已有插件响应了相同的命令'
+                            logger.error(errorLogPrefix + reason)
+                            throw Error(reason)
+                        }
                     }
                     profile.activePlugins.push(pluginObject)
                 } else {
-                    logger.warn(`插件 ${plugin.name} 载入方式有误，或暂不支持`)
-                    throw Error()
+                    const reason = `载入方式（${plugin?.load_method}）有误或暂不支持`
+                    logger.warn(errorLogPrefix + reason)
+                    throw Error(reason)
                 }
             }
         } catch (err) {
             logger.error(`载入 profile "${profile.profile.name}" 失败`)
-            throw err
+            throw Error(`载入 profile "${profile.profile.name}" 失败`, {
+                cause: err
+            })
         }
         this.activeProfiles.push(profile)
         logger.info(`已经载入 profile "${profile.profile.name}"`)

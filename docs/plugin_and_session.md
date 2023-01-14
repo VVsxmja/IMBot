@@ -3,7 +3,7 @@
 插件应当是一个对象，结构大致如下：
 
 ```javascript
-export default {
+export const 插件名称 = {
     name: '',
     description: ''
     middleware: [
@@ -22,7 +22,12 @@ export default {
 }
 ```
 
-`load_method` 为 `import` 的插件应当存放于 `/plugins/<插件名>/<插件名>.js` 中。
+`name` 为插件的名称，必须与插件对象名相同。加载插件时会检查名称是否重复。
+
+- `load_method` 为 `import` 的插件应当存放于 `/plugins/<插件名称>/<插件名称>.js` 中。
+  - 由于 Windows 文件系统对大小写不敏感而 Unix 大小写敏感，为了避免错误，你应当保证所有插件的 `name` 在忽略大小写的情况下两两不相同。
+
+`description` （可选）为插件的简介。
 
 ## `action()`
 

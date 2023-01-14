@@ -66,11 +66,14 @@
 
 *TODO：将 `profile` 运行时的数据存储在数据库中*
 
-#### 插件的加载方式
+-  `name` - 插件的名称
 
-##### `import`
+   - 插件的命名要求可以参考[这里](/docs/plugin_and_session.md)。
 
-在 `/plugins` 目录下寻找对应的插件。
+-  `load_method` - 插件的加载方式
 
-通过 [JavaScript *dynamic import*](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import)
+   -  `import`
+
+      - 在 `/plugins` 目录下寻找对应的插件。
+      - 通过 [JavaScript *dynamic import*](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import)
 加载插件。
