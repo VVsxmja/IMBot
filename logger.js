@@ -16,7 +16,7 @@ import pino from 'pino'
 const pinoTransports = pino.transport({
     targets: [
         {
-            level: 'trace',
+            level: 'trace', // FIXME: `debug` 和 `trace` 的 log 看不到
             target: 'pino/file',
             options: {
                 destination: `${logPath}/tmp.log`,
