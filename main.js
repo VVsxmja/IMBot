@@ -125,6 +125,17 @@ const bot = {
                     const commands = profile.activePlugins.flatMap(i => i.command).filter(x => x?.command === command.command)
                     if (commands.length !== 0) {
                         if (commands.length === 1) {
+                            await this.useAPI({
+                                action: 'send_msg',
+                                params: {
+                                    detail_type: 'group',
+                                    group_id: event.group_id,
+                                    message: [
+                                        { type: 'reply', data: { id: event.message_id } },
+                                        { type: 'text', data: { text: `参数：${JSON.stringify(command.args, null, 4)}` } }
+                                    ]
+                                }
+                            })
                             await this.callCommand(commands[0], command.args, context)
                         } else {
                             // 找到了不止一个命令
