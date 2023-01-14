@@ -234,14 +234,19 @@ const bot = {
                     // 检查命令是否能导入
 
                     if (!!pluginObject.command) {
-                        let duplicateCommand = false
-
                         const otherCommands = profile.activePlugins.flatMap(plugin => plugin.command).map(item => item.command)
                         const currentCommands = pluginObject.command.map(item => item.command)
+                        
+                        let duplicateCommand = false
                         for (const i of currentCommands) {
                             if (otherCommands.includes(i)) {
                                 duplicateCommand = true
                                 logger.warn(`插件 ${plugin.name} 试图响应已有的命令 "${i}"`);
+                            }
+                            if (/\s/.test(i)) {
+                                const reason = '命令不能带空格'
+                                logger.error(`插件 ${plugin.name} 试图响应格式非法的命令 "${i}" ：` + reason)
+                                throw Error(reason)
                             }
                         }
 
