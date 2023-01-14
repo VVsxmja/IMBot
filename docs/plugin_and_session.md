@@ -10,13 +10,13 @@ export const 插件名称 = {
         {
             async match(event) {},
             pass: false, 
-            async *action(event, context) {},
+            async *action(context) {},
         },
     ],
     command: [
         {
             command: 'ping',
-            async *action(args, context) {},
+            async *action(context, args) {},
         }
     ]
 }
