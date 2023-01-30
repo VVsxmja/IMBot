@@ -2,6 +2,47 @@
 
 export const CloneEvent = event => JSON.parse(JSON.stringify(event))
 
+export const MessageArrayToString = message => message.map(i =>
+    i.type === 'text' ? i.data.text : `[CQ:${i.type},${(() => {
+        const props = []
+        for (const prop in i.data) {
+            props.push(`${prop}=${i.data[prop]}`)
+        }
+        return props.join(',')
+    })()
+        }]`
+).join('')
+
+export function RemakeRawMessage(event) {
+    if (event.post_type !== 'message') return event
+    event = CloneEvent(event)
+    event.raw_message = MessageArrayToString(event.message)
+    return event
+}
+
+export function RemoveReplyFormat(event) {
+    if (event.post_type !== 'message') return event
+    event = CloneEvent(event)
+    if (event.message[0]?.type === 'reply') {
+        if (event.message[1]?.type === 'at') {
+            if (event.message[2]?.type === 'text' && event.message[2]?.data.text === ' ') {
+                event.message = event.message.slice(3) // 移除开头的 reply + at + 空格
+                if (event.message[0]?.type === 'at') {
+                    if (event.message[1]?.type === 'text') {
+                        if (event.message[1].data.text[0] === ' ') {
+                            event.message[1].data.text = event.message[1].data.text.slice(1)
+                            event.message = event.message.slice(1) // 移除自带的 at + 空格
+                            event = RemoveEmpty(event)
+                        }
+                    }
+                }
+                return RemakeRawMessage(TrimMessage(event))
+            }
+        }
+    }
+    return RemakeRawMessage(event)
+}
+
 export function TrimMessage(event) {
     if (event.post_type !== 'message') return event
     event = CloneEvent(event)
@@ -37,14 +78,14 @@ export function TrimMessage(event) {
         }
     }
     event.message = modifiedMessage.reverse()
-    return RemoveEmpty(event)
+    return RemakeRawMessage(RemoveEmpty(event))
 }
 
 export function RemoveEmpty(event) {
     if (event.post_type !== 'message') return event
     event = CloneEvent(event)
     event.message = event.message.filter(i => !(i.type === 'text' && i.data.text === ''))
-    return event
+    return RemakeRawMessage(event)
 }
 
 // TODO: ExtractDirectMessage()
