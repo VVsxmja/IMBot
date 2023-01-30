@@ -14,3 +14,7 @@
 给出了 `config.default.yml` 作为编写 `config.yml` 的参考。
 
 这个程序使用[正向 WebSocket](https://12.onebot.dev/connect/communication/websocket/) 方式与 go-cqhttp 通信。
+
+## 文档
+
+见 [`docs/`](docs/) 。
