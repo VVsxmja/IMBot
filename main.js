@@ -20,6 +20,8 @@ try {
 
 // 正向 WebSocket 连接 go-cqhttp 服务器
 
+// TODO: 把这部分改为 bot 的方法
+
 import WebSocket from 'ws'
 const ws = new WebSocket('ws://127.0.0.1:3050') // 端口号见 `config.yml`
 
@@ -31,23 +33,54 @@ ws.onclose = () => {
     logger.error('程序和 go-cqhttp 服务的连接已断开，程序即将退出')
 }
 
-ws.onmessage = (eventMessage) => {
-    let event
+ws.onmessage = (message) => {
+    let obj
     try {
-        event = JSON.parse(eventMessage.data)
+        obj = JSON.parse(message.data)
     } catch {
-        logger.warn(`收到非 JSON 格式消息，已忽略：${eventMessage.data}`)
+        logger.warn(`收到非 JSON 格式消息，已忽略：${message.data}`)
         return
     }
-    bot.pushEvent(event)
+    if (Object.hasOwn(obj, 'echo')) {
+        // 该消息为动作响应
+        bot.dispatchResponse(obj)
+    } else {
+        // 该消息为事件推送
+        bot.pushEvent(obj)
 }
+}
+
+const apiTimeout = 3000
 
 import * as fs from 'fs/promises'
 import { Mutex } from 'async-mutex'
 import { CloneEvent, ParseCommand } from './message_format.js'
+import { v4 as uuid } from 'uuid'
 const bot = {
     activeProfiles: [],
     eventQueueLock: new Mutex(),
+    activeSessions: [],
+    responseWaitingList: {
+        list: {},
+        insert(resolve, reject) {
+            let id = uuid()
+            while (!!this.list[id]) id = uuid()
+            this.list[id] = { resolve, reject }
+            return id
+        },
+        includes(id) {
+            return !!this.list[id]
+        },
+        call(id, response) {
+            if (!this.list[id]) throw Error()
+            if (response.status == 'ok') {
+                this.list[id].resolve(response)
+            } else {
+                this.list[id].reject(response)
+            }
+            delete this.list[id]
+        }
+    },
     async pushEvent(event) {
         await this.eventQueueLock.runExclusive(async () => this.handleEvent(event))
     },
@@ -274,26 +307,39 @@ const bot = {
         this.activeProfiles.push(profile)
         logger.info(`已经载入 profile "${profile.profile.name}"`)
     },
+    async dispatchResponse(response) {
+        if (!this.responseWaitingList.includes(response.echo)) {
+            logger.fatal(`收到的动作响应包含无效的 echo 字段：${response.echo}`)
+            throw Error()
+        }
+        this.responseWaitingList.call(response.echo, response)
+    },
     async useAPI(request) {
-        // TODO: 获取响应消息
-
+        if (!!request.echo) {
+            logger.error({
+                msg: '调用请求的 echo 字段未留空',
+                request,
+            })
+            throw Error('调用请求的 echo 字段未留空')
+        }
         logger.trace({
             msg: '调用了 API',
             request,
         })
         return new Promise((resolve, reject) => {
+            const requestID = this.responseWaitingList.insert(resolve, reject)
+            request.echo = requestID // 用于接收响应时判断是否为对应的事件
             ws.send(JSON.stringify(request), (err) => {
                 if (err) {
                     logger.error({
                         msg: '调用 API 时发生错误',
                         err,
-                        request
+                        request,
                     })
-                    reject()
-                } else {
-                    resolve()
+                    reject(err)
                 }
             })
+            setTimeout(() => { reject(Error('timeout')) }, apiTimeout)
         })
     }
 }
