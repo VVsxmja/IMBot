@@ -33,8 +33,8 @@ export const 插件名称 = {
 
 无论是中间件形式还是命令形式，都通过 `action()` 来响应事件。
 
-`action()` 函数**必须要写成 [generator function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*)** ，
-因为程序会将这个函数当作 generator function 调用。
+`action()` 函数**必须要写成 [async generator function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function*)** ，
+因为程序会将这个函数当作 async generator function 调用。
 
 函数执行时，可以通过 `yield` 等待响应一个[属于当前 `session`](#session-对事件的响应) 的事件。
 
@@ -78,7 +78,7 @@ export const 插件名称 = {
 
 ## `session`
 
-`session` 是这个机器人的一个比较重要的概念，可以理解为「会话」，可以让插件实现一些交互式的操作。
+`session` 即「会话」，可以让插件实现交互式操作。
 
 当插件以任意形式响应了一个事件，程序就会创建一个新的 `session` 。
 
@@ -118,5 +118,5 @@ export const 插件名称 = {
 }
 ```
 
-- `context` : 数组，存放属于该 `session` 的全部事件。
-- `inst` : [Generator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) ，是 `action()` 的一个实例。
+- `history` : 数组，存放属于该 `session` 的全部消息的 `message_id` 。
+- `inst` : [AsyncGenerator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncGenerator) ，是 `action()` 的一个实例。
