@@ -47,7 +47,7 @@ ws.onmessage = (message) => {
     } else {
         // 该消息为事件推送
         bot.pushEvent(obj)
-}
+    }
 }
 
 const apiTimeout = 3000
@@ -85,17 +85,28 @@ const bot = {
         await this.eventQueueLock.runExclusive(async () => this.handleEvent(event))
     },
     async callCommand(command, args, context) {
-        let inst = command.action(context, args)
-        if (!(await inst.next()).done) {
-            // TODO: 添加 `session`
-            logger.warn('有一个命令的动作未在一步内结束，由于程序暂时无法创建 session ，后续的步骤将不会执行')
+        logger.info({
+            msg: `调用了命令 ${command}`,
+            args,
+            context,
+        })
+        const newSession = {
+            history: [],
+            inst: undefined
+        }
+        newSession.inst = command.action.bind(newSession)(context, args)
+        if (!(await newSession.inst.next()).done) {
+            this.activeSessions.push(newSession)
         }
     },
     async callMiddleware(middleware, context) {
-        let inst = middleware.action(context)
-        if (!(await inst.next()).done) {
-            // TODO: 添加 `session`
-            logger.warn('有一个中间件的动作未在一步内结束，由于程序暂时无法创建 session ，后续的步骤将不会执行')
+        const newSession = {
+            history: [],
+            inst: undefined
+        }
+        newSession.inst = middleware.action.bind(newSession)(context)
+        if (!(await newSession.inst.next()).done) {
+            this.activeSessions.push(newSession)
         }
     },
     async handleEvent(event) {
@@ -104,7 +115,23 @@ const bot = {
             event: event,
         })
 
-        // TODO: `session` 先响应事件
+        console.log({
+            msg: '当前 sessions : ',
+            sessions: this.activeSessions
+        })
+
+        for (let i = this.activeSessions.length - 1; i >= 0; --i) {
+            const session = this.activeSessions[i]
+            // 目前触发方式只有一种
+            if (event.post_type === 'message') {
+                const replies = event.message.filter(msg => msg.type === 'reply').map(reply => reply.data.id)
+                if (replies.some(id => !!id && session.history.includes(id))) {
+                    if ((await session.inst.next(event)).done) {
+                        this.activeSessions.splice(i, 1) // `session` 结束后删除 `session`
+                    }
+                }
+            }
+        }
 
         for (const profile of this.activeProfiles) {
 
@@ -269,7 +296,7 @@ const bot = {
                     if (!!pluginObject.command) {
                         const otherCommands = profile.activePlugins.flatMap(plugin => plugin.command).map(item => item.command)
                         const currentCommands = pluginObject.command.map(item => item.command)
-                        
+
                         let duplicateCommand = false
                         for (const i of currentCommands) {
                             if (otherCommands.includes(i)) {
