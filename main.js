@@ -371,4 +371,4 @@ const bot = {
     }
 }
 
-await bot.loadProfile('./profiles/test_group.json')
+await bot.loadProfile('./profiles/test_group/test_group.json')

@@ -5,7 +5,7 @@
 一个 `profile` 保存了机器人在群聊中的「配置」和对应群聊的一些基本信息，
 比如开启了哪些插件、哪些用户有管理员权限等等。
 
-`profile` 应当保存在 `/profiles/<profile 名称>.json` 中。
+`profile` 默认保存在 `/profiles/<profile 名称>/<profile 名称>.json` 中。
 但这并不是硬性要求，你也可以保存在其他任何地方，只要程序能够正确载入即可。
 
 *TODO：在任何群聊中，使用**拥有管理员权限的帐号**向机器人[直接发送](/docs/message_format.md#直接消息) `"/start"` 
@@ -23,12 +23,7 @@
     ],
     "admins": [
         {
-            "user_id": 123456,
-            "only_in": [
-                {
-                    "group_id": 123456789
-                }
-            ]
+            "user_id": 123456
         }
     ],
     "plugins": [
