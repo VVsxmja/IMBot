@@ -10,6 +10,7 @@ process.on('exit', () => {
 
 try {
     const connect = (await import('./go-cqhttp/runner.js')).default
+    logger.info('正在等待 go-cqhttp 启动')
     await connect()
     logger.info('go-cqhttp 已开始运行')
 } catch (err) {
@@ -82,7 +83,16 @@ const bot = {
         }
     },
     async pushEvent(event) {
-        await this.eventQueueLock.runExclusive(async () => this.handleEvent(event))
+        await this.eventQueueLock.runExclusive(async () => {
+            try {
+                await this.handleEvent(event)
+            } catch (error) {
+                logger.fatal({
+                    msg: 'Unhandled error: ',
+                    error,
+                })
+            }
+        })
     },
     async callCommand(command, args, context) {
         logger.info({
@@ -113,11 +123,6 @@ const bot = {
         logger.trace({
             msg: '收到事件',
             event: event,
-        })
-
-        console.log({
-            msg: '当前 sessions : ',
-            sessions: this.activeSessions
         })
 
         for (let i = this.activeSessions.length - 1; i >= 0; --i) {
@@ -185,17 +190,6 @@ const bot = {
                     const commands = profile.activePlugins.flatMap(i => i.command).filter(x => x?.command === command.command)
                     if (commands.length !== 0) {
                         if (commands.length === 1) {
-                            await this.useAPI({
-                                action: 'send_msg',
-                                params: {
-                                    detail_type: 'group',
-                                    group_id: event.group_id,
-                                    message: [
-                                        { type: 'reply', data: { id: event.message_id } },
-                                        { type: 'text', data: { text: `参数：${JSON.stringify(command.args, null, 4)}` } }
-                                    ]
-                                }
-                            })
                             await this.callCommand(commands[0], command.args, context)
                         } else {
                             // 找到了不止一个命令
