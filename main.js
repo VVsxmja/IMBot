@@ -10,6 +10,7 @@ import * as fs from 'fs/promises'
 import { Mutex } from 'async-mutex'
 import { CloneEvent, ParseCommand } from './message_format.js'
 import { v4 as uuid } from 'uuid'
+import { WebSocket } from 'ws'
 const bot = {
     activeProfiles: [],
     eventQueueLock: new Mutex(),
@@ -321,53 +322,54 @@ const bot = {
         if (!!this.ws) {
             logger.error('不可重复 start()')
         } else {
-            // 启动 go-cqhttp 服务
-            try {
-                logger.info('正在等待 go-cqhttp 启动')
-                const connect = (await import('./go-cqhttp/runner.js')).default
-                await connect()
-                logger.info('go-cqhttp 已开始运行')
-            } catch (err) {
-                logger.fatal({
-                    msg: 'go-cqhttp 启动失败',
-                    err,
-                })
-                return
-            }
-
-            // 正向 WebSocket 连接 go-cqhttp 服务器
-            try {
-                const WebSocket = (await import('ws')).default
-                this.ws = new WebSocket('ws://127.0.0.1:3050') // 端口号见 `config.yml`
-                this.ws.onopen = () => {
-                    logger.info('程序已连接到 go-cqhttp 服务')
+            return new Promise(async (resolve, reject) => {
+                // 启动 go-cqhttp 服务
+                try {
+                    logger.info('正在等待 go-cqhttp 启动')
+                    const connect = (await import('./go-cqhttp/runner.js')).default
+                    await connect()
+                    logger.info('go-cqhttp 已开始运行')
+                } catch (err) {
+                    logger.fatal({
+                        msg: 'go-cqhttp 启动失败',
+                        err,
+                    })
+                    reject()
                 }
-                this.ws.onclose = () => {
-                    console.error('程序和 go-cqhttp 服务的连接已断开，程序即将退出')
-                    process.exit(-1)
-                }
-                this.ws.onmessage = (message) => {
-                    try {
-                        const obj = JSON.parse(message.data)
-                        if (Object.hasOwn(obj, 'echo')) {
-                            // 该消息为动作响应
-                            this.dispatchResponse(obj)
-                        } else {
-                            // 该消息为事件推送
-                            this.pushEvent(obj)
-                        }
-                    } catch {
-                        logger.warn(`收到非 JSON 格式消息，已忽略：${message.data}`)
-                        return
+                // 正向 WebSocket 连接 go-cqhttp 服务器
+                try {
+                    this.ws = new WebSocket('ws://127.0.0.1:3050') // 端口号见 `config.yml`
+                    this.ws.onopen = () => {
+                        logger.info('程序已连接到 go-cqhttp 服务')
+                        resolve()
                     }
+                    this.ws.onclose = () => {
+                        console.error('程序和 go-cqhttp 服务的连接已断开，程序即将退出')
+                        process.exit(-1)
+                    }
+                    this.ws.onmessage = (message) => {
+                        try {
+                            const obj = JSON.parse(message.data)
+                            if (Object.hasOwn(obj, 'echo')) {
+                                // 该消息为动作响应
+                                this.dispatchResponse(obj)
+                            } else {
+                                // 该消息为事件推送
+                                this.pushEvent(obj)
+                            }
+                        } catch {
+                            logger.warn(`收到非 JSON 格式消息，已忽略：${message.data}`)
+                            return
+                        }
+                    }
+                } catch (err) {
+                    logger.fatal({
+                        msg: '连接 go-cqhttp 服务失败',
+                        err,
+                    })
+                    reject()
                 }
-            } catch (err) {
-                logger.fatal({
-                    msg: '连接 go-cqhttp 服务失败',
-                    err,
-                })
-                return
-            }
+            })
         }
     }
 }
