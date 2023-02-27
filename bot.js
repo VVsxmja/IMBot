@@ -11,7 +11,7 @@ import { Mutex } from 'async-mutex'
 import { CloneEvent, ParseCommand } from './message_format.js'
 import { v4 as uuid } from 'uuid'
 import { WebSocket } from 'ws'
-const bot = {
+export const bot = {
     activeProfiles: [],
     eventQueueLock: new Mutex(),
     activeSessions: [],
@@ -373,6 +373,3 @@ const bot = {
         }
     }
 }
-
-await bot.start()
-await bot.loadProfile('./profiles/test_group/test_group.json')

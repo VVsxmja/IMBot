@@ -13,9 +13,7 @@
   "bugs": {
     "url": "https://github.com/VVsxmja/IMBot/issues"
   },
-  "scripts": {
-    "start": "node main.js"
-  },
+  "main": "bot.js",
   "type": "module",
   "dependencies": {
     "async-mutex": "^0.4.0",
