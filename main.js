@@ -6,53 +6,6 @@ process.on('exit', () => {
     console.info('程序已退出')
 })
 
-// go-cqhttp
-
-try {
-    const connect = (await import('./go-cqhttp/runner.js')).default
-    logger.info('正在等待 go-cqhttp 启动')
-    await connect()
-    logger.info('go-cqhttp 已开始运行')
-} catch (err) {
-    console.error('go-cqhttp 启动失败，程序即将退出')
-    console.error(err)
-    process.exit()
-}
-
-// 正向 WebSocket 连接 go-cqhttp 服务器
-
-// TODO: 把这部分改为 bot 的方法
-
-import WebSocket from 'ws'
-const ws = new WebSocket('ws://127.0.0.1:3050') // 端口号见 `config.yml`
-
-ws.onopen = () => {
-    logger.info('程序已连接到 go-cqhttp 服务')
-}
-
-ws.onclose = () => {
-    logger.error('程序和 go-cqhttp 服务的连接已断开，程序即将退出')
-}
-
-ws.onmessage = (message) => {
-    let obj
-    try {
-        obj = JSON.parse(message.data)
-    } catch {
-        logger.warn(`收到非 JSON 格式消息，已忽略：${message.data}`)
-        return
-    }
-    if (Object.hasOwn(obj, 'echo')) {
-        // 该消息为动作响应
-        bot.dispatchResponse(obj)
-    } else {
-        // 该消息为事件推送
-        bot.pushEvent(obj)
-    }
-}
-
-const apiTimeout = 3000
-
 import * as fs from 'fs/promises'
 import { Mutex } from 'async-mutex'
 import { CloneEvent, ParseCommand } from './message_format.js'
@@ -61,6 +14,7 @@ const bot = {
     activeProfiles: [],
     eventQueueLock: new Mutex(),
     activeSessions: [],
+    apiTimeout: 3000,
     responseWaitingList: {
         list: {},
         insert(resolve, reject) {
@@ -350,7 +304,7 @@ const bot = {
         return new Promise((resolve, reject) => {
             const requestID = this.responseWaitingList.insert(resolve, reject)
             request.echo = requestID // 用于接收响应时判断是否为对应的事件
-            ws.send(JSON.stringify(request), (err) => {
+            this.ws.send(JSON.stringify(request), (err) => {
                 if (err) {
                     logger.error({
                         msg: '调用 API 时发生错误',
@@ -360,9 +314,63 @@ const bot = {
                     reject(err)
                 }
             })
-            setTimeout(() => { reject(Error('timeout')) }, apiTimeout)
+            setTimeout(() => { reject(Error('timeout')) }, this.apiTimeout)
         })
+    },
+    async start() {
+        if (!!this.ws) {
+            logger.error('不可重复 start()')
+        } else {
+            // 启动 go-cqhttp 服务
+            try {
+                logger.info('正在等待 go-cqhttp 启动')
+                const connect = (await import('./go-cqhttp/runner.js')).default
+                await connect()
+                logger.info('go-cqhttp 已开始运行')
+            } catch (err) {
+                logger.fatal({
+                    msg: 'go-cqhttp 启动失败',
+                    err,
+                })
+                return
+            }
+
+            // 正向 WebSocket 连接 go-cqhttp 服务器
+            try {
+                const WebSocket = (await import('ws')).default
+                this.ws = new WebSocket('ws://127.0.0.1:3050') // 端口号见 `config.yml`
+                this.ws.onopen = () => {
+                    logger.info('程序已连接到 go-cqhttp 服务')
+                }
+                this.ws.onclose = () => {
+                    console.error('程序和 go-cqhttp 服务的连接已断开，程序即将退出')
+                    process.exit(-1)
+                }
+                this.ws.onmessage = (message) => {
+                    try {
+                        const obj = JSON.parse(message.data)
+                        if (Object.hasOwn(obj, 'echo')) {
+                            // 该消息为动作响应
+                            this.dispatchResponse(obj)
+                        } else {
+                            // 该消息为事件推送
+                            this.pushEvent(obj)
+                        }
+                    } catch {
+                        logger.warn(`收到非 JSON 格式消息，已忽略：${message.data}`)
+                        return
+                    }
+                }
+            } catch (err) {
+                logger.fatal({
+                    msg: '连接 go-cqhttp 服务失败',
+                    err,
+                })
+                return
+            }
+        }
     }
 }
 
+await bot.start()
 await bot.loadProfile('./profiles/test_group/test_group.json')
