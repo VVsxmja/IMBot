@@ -326,8 +326,7 @@ export const bot = {
                 // 启动 go-cqhttp 服务
                 try {
                     logger.info('正在等待 go-cqhttp 启动')
-                    const connect = (await import('./go-cqhttp/runner.js')).default
-                    await connect()
+                    await (await import('./go-cqhttp/runner.js')).connect()
                     logger.info('go-cqhttp 已开始运行')
                 } catch (err) {
                     logger.fatal({

@@ -2,7 +2,7 @@ import logger from '../logger.js'
 
 import gocqhttp from 'go-cqhttp'
 
-async function connect() {
+export async function connect() {
     // 参考了 https://github.com/koishijs/koishi-plugin-gocqhttp/blob/master/src/index.ts
     return new Promise((resolve, reject) => {
         const botProcess = gocqhttp({ faststart: true })
@@ -26,5 +26,3 @@ async function connect() {
         })
     })
 }
-
-export default connect
