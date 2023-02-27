@@ -256,7 +256,7 @@ export const bot = {
             for (const plugin of profile.profile.plugins) {
                 const errorLogPrefix = `为 profile "${profile.profile.name}" 载入插件 ${plugin.name} 失败：`
 
-                if (plugin?.load_method === 'import') {
+                if (plugin?.load_method === 'builtin') {
                     const target = path.join(packageDir, `plugins/${plugin.name}/${plugin.name}.js`)
                     try {
                         const pluginObject = (await import(target))[plugin.name]
@@ -268,7 +268,7 @@ export const bot = {
                             cause: err
                         })
                     }
-                } else if (plugin?.load_method === 'import_local') {
+                } else if (plugin?.load_method === 'import') {
                     const target = path.join(process.cwd(), `plugins/${plugin.name}/${plugin.name}.js`)
                     try {
                         const pluginObject = (await import(target))[plugin.name]
