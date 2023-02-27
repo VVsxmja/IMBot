@@ -95,7 +95,7 @@ export function ParseCommand(event) {
     event = TrimMessage(event)
     // TODO: 检查是否是直接消息
     if (event.message.length <= 0 || event.message[0].type !== 'text') return undefined // 不以文本开头
-    const commandMatcher = /\/(?<command>[^\s]+)/
+    const commandMatcher = /^\/(?<command>[^\s]+)/
     const matchResult = commandMatcher.exec(event.message[0].data.text)
     if (!matchResult) return undefined
     const command = matchResult.groups.command

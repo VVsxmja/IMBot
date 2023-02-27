@@ -116,9 +116,35 @@ export const bot = {
 
                 // 先判断事件是否满足命令形式
 
-                let command
                 try {
-                    command = _MessageFormat.ParseCommand(event)
+                    const command = _MessageFormat.ParseCommand(event)
+                    if (command) {
+                        const commands = profile.activePlugins.flatMap(i => i.command).filter(x => x?.command === command.command)
+                        if (commands.length !== 0) {
+                            if (commands.length === 1) {
+                                await this.callCommand(commands[0], command.args, context)
+                            } else {
+                                // 找到了不止一个命令
+                                logger.fatal({
+                                    msg: `对于 ${command} 命令，找到了 ${commands.length} 个匹配`,
+                                    profile,
+                                    event,
+                                })
+                            }
+                        } else {
+                            await this.useAPI({
+                                action: 'send_msg',
+                                params: {
+                                    detail_type: 'group',
+                                    group_id: event.group_id,
+                                    message: [
+                                        { type: 'reply', data: { id: event.message_id } },
+                                        { type: 'text', data: { text: `${command.command} 命令不存在` } }
+                                    ]
+                                }
+                            })
+                        }
+                    }
                 } catch (err) {
                     if (err.message === '引号不匹配') {
                         await this.useAPI({
@@ -142,33 +168,6 @@ export const bot = {
                                 message: [
                                     { type: 'reply', data: { id: event.message_id } },
                                     { type: 'text', data: { text: '解析命令时遇到未知错误' } }
-                                ]
-                            }
-                        })
-                    }
-                }
-                if (command) {
-                    const commands = profile.activePlugins.flatMap(i => i.command).filter(x => x?.command === command.command)
-                    if (commands.length !== 0) {
-                        if (commands.length === 1) {
-                            await this.callCommand(commands[0], command.args, context)
-                        } else {
-                            // 找到了不止一个命令
-                            logger.fatal({
-                                msg: `对于 ${command} 命令，找到了 ${commands.length} 个匹配`,
-                                profile,
-                                event,
-                            })
-                        }
-                    } else {
-                        await this.useAPI({
-                            action: 'send_msg',
-                            params: {
-                                detail_type: 'group',
-                                group_id: event.group_id,
-                                message: [
-                                    { type: 'reply', data: { id: event.message_id } },
-                                    { type: 'text', data: { text: `${command.command} 命令不存在` } }
                                 ]
                             }
                         })
