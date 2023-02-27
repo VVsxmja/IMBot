@@ -7,10 +7,16 @@ process.on('exit', () => {
 })
 
 import * as fs from 'fs/promises'
+import * as path from 'path'
 import { Mutex } from 'async-mutex'
-import { CloneEvent, ParseCommand } from './message_format.js'
+import * as _MessageFormat from './message_format.js'
 import { v4 as uuid } from 'uuid'
 import { WebSocket } from 'ws'
+
+const packageDir = path.dirname(import.meta.url)
+
+export const MessageFormat = _MessageFormat
+
 export const bot = {
     activeProfiles: [],
     eventQueueLock: new Mutex(),
@@ -103,7 +109,7 @@ export const bot = {
                 if (!profile.profile.groups.map(g => g.group_id).includes(event.group_id)) continue
 
                 const context = {
-                    event: CloneEvent(event),
+                    event: _MessageFormat.CloneEvent(event),
                     profile: profile,
                     bot: this
                 }
@@ -112,7 +118,7 @@ export const bot = {
 
                 let command
                 try {
-                    command = ParseCommand(event)
+                    command = _MessageFormat.ParseCommand(event)
                 } catch (err) {
                     if (err.message === '引号不匹配') {
                         await this.useAPI({
@@ -183,91 +189,97 @@ export const bot = {
             }
         }
     },
-    async loadProfile(path) {
-        logger.info(`正在从 ${path} 载入 profile ……`)
+    async loadProfile(profilePath) {
+        logger.info(`正在从 ${profilePath} 载入 profile ……`)
         let content
         try {
-            content = JSON.parse(await fs.readFile(path, 'utf-8'))
+            content = JSON.parse(await fs.readFile(profilePath, 'utf-8'))
         } catch (err) {
-            logger.error(`无法从 ${path} 载入 profile`)
+            logger.error(`无法从 ${profilePath} 载入 profile`)
             throw err
         }
         let profile = {
             profile: content,
-            path: path,
-            activePlugins: []
+            path: profilePath,
+            activePlugins: [],
+            loadPlugin(plugin) {
+                // 检查插件能否正确载入
+
+                // 检查插件名称
+
+                if (!plugin.name) {
+                    throw Error('name 属性不存在')
+                }
+
+                if (plugin.name !== plugin.name) {
+                    throw Error(`name 属性有误（${plugin.name}），应与插件名称相同`)
+                }
+
+                for (const usedName of this.activePlugins.map(p => p.name)) {
+                    if (usedName === plugin.name) {
+                        throw Error('已经导入了同名插件')
+                    } else if (usedName.toLowerCase() === plugin.name.toLowerCase()) {
+                        logger.warn(`插件 ${plugin.name} 与已加载的插件 ${usedName} 除大小写外完全相同`)
+                    }
+                }
+
+                // 暂时没有对中间件的检查
+                // 检查命令是否能导入
+
+                if (!!plugin.command) {
+                    const otherCommands = this.activePlugins.flatMap(p => p?.command).map(i => i?.command).filter(Boolean)
+                    const currentCommands = plugin.command.map(i => i?.command).filter(Boolean)
+
+                    let duplicateCommand = false
+                    for (const i of currentCommands) {
+                        if (otherCommands.includes(i)) {
+                            duplicateCommand = true
+                            logger.warn(`插件 ${plugin.name} 试图响应已有的命令 "${i}"`);
+                        }
+                        if (/\s/.test(i)) {
+                            const reason = '命令不能带空格'
+                            logger.error(`插件 ${plugin.name} 试图响应格式非法的命令 "${i}" ：` + reason)
+                            throw Error(reason)
+                        }
+                    }
+
+                    // 载入插件结束
+
+                    if (duplicateCommand) {
+                        throw Error('与已有插件响应了相同的命令')
+                    }
+                }
+                this.activePlugins.push(plugin)
+            }
         }
         try {
             for (const plugin of profile.profile.plugins) {
-                if (plugin?.load_method === 'import') {
-                    const errorLogPrefix = `为 profile "${profile.profile.name}" 载入插件 ${plugin.name} 失败：`
+                const errorLogPrefix = `为 profile "${profile.profile.name}" 载入插件 ${plugin.name} 失败：`
 
-                    let pluginObject
+                if (plugin?.load_method === 'import') {
+                    const target = path.join(packageDir, `plugins/${plugin.name}/${plugin.name}.js`)
                     try {
-                        pluginObject = (await import(`./plugins/${plugin.name}/${plugin.name}.js`))[plugin.name]
+                        const pluginObject = (await import(target))[plugin.name]
+                        profile.loadPlugin(pluginObject)
                     } catch (err) {
-                        const reason = `无法从 ./plugins/${plugin.name}/${plugin.name}.js 导入 ${plugin.name} 对象`
+                        const reason = `无法从 ${target} 导入 ${plugin.name} 对象`
                         logger.error(errorLogPrefix + reason)
                         throw Error(reason, {
                             cause: err
                         })
                     }
-
-                    // 检查插件能否正确载入
-
-                    // 检查插件名称
-
-                    if (!pluginObject.name) {
-                        const reason = 'name 属性不存在'
+                } else if (plugin?.load_method === 'import_local') {
+                    const target = path.join(process.cwd(), `plugins/${plugin.name}/${plugin.name}.js`)
+                    try {
+                        const pluginObject = (await import(target))[plugin.name]
+                        profile.loadPlugin(pluginObject)
+                    } catch (err) {
+                        const reason = `无法从 ${target} 导入 ${plugin.name} 对象`
                         logger.error(errorLogPrefix + reason)
-                        throw Error(reason)
+                        throw Error(reason, {
+                            cause: err
+                        })
                     }
-
-                    if (pluginObject.name !== plugin.name) {
-                        const reason = `name 属性有误（${pluginObject.name}），应与插件名称相同`
-                        logger.error(errorLogPrefix + reason)
-                        throw Error(reason)
-                    }
-
-                    for (const usedName of profile.activePlugins.map(plugin => plugin.name)) {
-                        if (usedName === plugin.name) {
-                            const reason = '已经导入了同名插件'
-                            logger.error(errorLogPrefix + reason)
-                            throw Error(reason)
-                        } else if (usedName.toLowerCase() === plugin.name.toLowerCase()) {
-                            logger.warn(`插件 ${plugin.name} 与已加载的插件 ${usedName} 除大小写外完全相同`)
-                        }
-                    }
-
-                    // 暂时没有对中间件的检查
-                    // 检查命令是否能导入
-
-                    if (!!pluginObject.command) {
-                        const otherCommands = profile.activePlugins.flatMap(plugin => plugin.command).map(item => item.command)
-                        const currentCommands = pluginObject.command.map(item => item.command)
-
-                        let duplicateCommand = false
-                        for (const i of currentCommands) {
-                            if (otherCommands.includes(i)) {
-                                duplicateCommand = true
-                                logger.warn(`插件 ${plugin.name} 试图响应已有的命令 "${i}"`);
-                            }
-                            if (/\s/.test(i)) {
-                                const reason = '命令不能带空格'
-                                logger.error(`插件 ${plugin.name} 试图响应格式非法的命令 "${i}" ：` + reason)
-                                throw Error(reason)
-                            }
-                        }
-
-                        // 载入插件结束
-
-                        if (duplicateCommand) {
-                            const reason = '与已有插件响应了相同的命令'
-                            logger.error(errorLogPrefix + reason)
-                            throw Error(reason)
-                        }
-                    }
-                    profile.activePlugins.push(pluginObject)
                 } else {
                     const reason = `载入方式（${plugin?.load_method}）有误或暂不支持`
                     logger.warn(errorLogPrefix + reason)
