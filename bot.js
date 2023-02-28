@@ -16,6 +16,7 @@ import { WebSocket } from 'ws'
 const packageDir = path.dirname(import.meta.url)
 
 export const MessageFormat = _MessageFormat
+export const Logger = logger
 
 export const bot = {
     activeProfiles: [],
